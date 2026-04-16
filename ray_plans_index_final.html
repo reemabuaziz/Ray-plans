@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ray plans</title>
+
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin:0;
+  background: linear-gradient(135deg,#d0f0ff,#ffd6e7,#d6ffd9,#fff5cc);
+  text-align:center;
+}
+
+.container { padding:20px; }
+
+.card {
+  background: rgba(255,255,255,0.7);
+  margin:20px auto;
+  padding:20px;
+  border-radius:20px;
+  width:90%;
+  max-width:400px;
+}
+
+button {
+  background: linear-gradient(135deg,#89CFF0,#FFB6C1);
+  border:none;
+  padding:10px;
+  border-radius:10px;
+  cursor:pointer;
+  width:100%;
+}
+
+.hidden { display:none; }
+
+.task {
+  background:white;
+  margin-top:10px;
+  padding:10px;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="login" class="container">
+  <div class="card">
+    <h2>Ray plans</h2>
+    <input id="name" placeholder="Your name"><br><br>
+    <button onclick="login()">Enter</button>
+  </div>
+</div>
+
+<div id="app" class="container hidden">
+  <h1 id="welcome"></h1>
+
+  <div class="card">
+    <input type="file" id="imageInput">
+    <button onclick="scan()">Scan</button>
+  </div>
+
+  <div class="card">
+    <button onclick="generatePlan()">Study Plan</button>
+    <div id="plan"></div>
+  </div>
+
+  <div class="card">
+    <h3>Your Tasks</h3>
+    <div id="tasks"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+window.onload = () => {
+  const user = localStorage.getItem("user");
+  if(user){
+    showApp(user);
+  }
+};
+
+function login(){
+  const name = document.getElementById("name").value;
+  if(!name) return alert("Enter name");
+
+  localStorage.setItem("user", name);
+  showApp(name);
+}
+
+function showApp(name){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("welcome").innerText = "Hey " + name;
+  render();
+}
+
+function scan(){
+  const file=document.getElementById("imageInput").files[0];
+  if(!file)return alert("upload image");
+
+  Tesseract.recognize(file,'eng')
+  .then(({data:{text}})=>{
+    text.split("\n").forEach(l=>{
+      if(l.includes("Due")){
+        tasks.push({title:l,progress:0});
+      }
+    });
+    save();
+    render();
+  });
+}
+
+function render(){
+  const box=document.getElementById("tasks");
+  box.innerHTML="";
+  tasks.forEach((t,i)=>{
+    const d=document.createElement("div");
+    d.className="task";
+    d.innerHTML=`
+      <b>${t.title}</b>
+      <button onclick="progress(${i})">+ Progress</button>
+      <p>${t.progress}%</p>
+    `;
+    box.appendChild(d);
+  });
+}
+
+function progress(i){
+  tasks[i].progress+=10;
+  save();
+  render();
+}
+
+function generatePlan(){
+  let out="";
+  tasks.forEach(t=>{
+    out+=`<p>${t.title}: study daily</p>`;
+  });
+  document.getElementById("plan").innerHTML=out;
+}
+
+function save(){
+  localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+</script>
+
+</body>
+</html>
