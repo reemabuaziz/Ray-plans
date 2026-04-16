@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ray plans</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: linear-gradient(135deg, #d0f0ff, #ffd6e7, #d6ffd9, #fff5cc);
+  text-align: center;
+}
+
+#splash {
+  position: fixed;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 40px;
+  color: #3aa0ff;
+  background: white;
+}
+
+.container {
+  display: none;
+  padding: 20px;
+}
+
+.card {
+  background: rgba(255,255,255,0.7);
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #8fd3ff;
+  cursor: pointer;
+  width: 100%;
+}
+
+.task {
+  background: white;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
+</style>
+
+</head>
+<body>
+
+<div id="splash">Ray plans</div>
+
+<div class="container" id="app">
+  <h1 id="welcome"></h1>
+
+  <div class="card">
+    <input type="file" id="imageInput">
+    <button onclick="extractText()">Scan</button>
+  </div>
+
+  <div class="card">
+    <button onclick="generatePlan()">Study Plan</button>
+    <div id="plan"></div>
+  </div>
+
+  <div class="card">
+    <h3>Your Tasks</h3>
+    <div id="tasks"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<script>
+let tasks = [];
+
+setTimeout(()=>{
+  document.getElementById("splash").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  let name = localStorage.getItem("name") || prompt("What should I call you?");
+  localStorage.setItem("name", name);
+  document.getElementById("welcome").innerText = "Hey " + name;
+}, 2000);
+
+function extractText(){
+  const file = document.getElementById("imageInput").files[0];
+  if(!file) return alert("Upload image");
+
+  Tesseract.recognize(file,'eng')
+  .then(({data:{text}})=>{
+    parse(text);
+  });
+}
+
+function parse(text){
+  const lines = text.split("\n");
+  const regex = /(.*)\s+Due\s+(.*)/i;
+
+  lines.forEach(l=>{
+    const m = l.match(regex);
+    if(m){
+      tasks.push({
+        title:m[1],
+        date:new Date(m[2]),
+        progress:0
+      });
+    }
+  });
+
+  render();
+}
+
+function render(){
+  const box = document.getElementById("tasks");
+  box.innerHTML = "";
+
+  tasks.sort((a,b)=>a.date-b.date);
+
+  tasks.forEach((t,i)=>{
+    const d = document.createElement("div");
+    d.className="task";
+
+    d.innerHTML = `
+      <h4>${t.title}</h4>
+      <p>${t.date.toDateString()}</p>
+      <button onclick="progress(${i})">+ Progress</button>
+      <p>${t.progress}%</p>
+    `;
+
+    box.appendChild(d);
+  });
+}
+
+function progress(i){
+  tasks[i].progress += 10;
+  render();
+}
+
+function generatePlan(){
+  let out = "<h3>Study Plan</h3>";
+  tasks.forEach(t=>{
+    const days = Math.ceil((t.date-new Date())/(1000*60*60*24));
+    if(days>0){
+      let load = Math.ceil(100/days);
+      out += `<p>${t.title}: Study ${load}% daily</p>`;
+    }
+  });
+  document.getElementById("plan").innerHTML = out;
+}
+</script>
+
+</body>
+</html>
